@@ -10,11 +10,14 @@ thin:
   serializable from JSON/JSONC, no UI dependencies.
 - `default/` — 7 embedded **default layouts** shipped with the crate
   (`Dashboard`, `Vertical`, `Horizontal`, `CPU Focus`, `Memory Focus`,
-  `Network Focus`, `Process Focus`). These are the editable templates the
-  kernel seeds into the user config dir on first run.
+  `Network Focus`, `Process Focus`). On startup the kernel writes these as
+  editable templates into the user config layouts dir when it initializes
+  its assets (never overwriting files the user already edited).
 - `custom/` — **community layouts**: installable extras, shared via PRs.
-  They never ship in the binary; users copy them (or install them) into
-  `~/.config/xtop/layouts/`.
+  They never ship in the binary; the kernel's `xtop layout install <name>`
+  fetches this folder and copies the layout into the user config layouts
+  dir (or copy the file there yourself, e.g. `~/.config/xtop/layouts/` on
+  Linux).
 - `loader` — loading/parsing of JSONC files and merging with user overrides.
 - `mode` — built-in layout modes and terminal-size degradation rules.
 
@@ -62,6 +65,15 @@ Layout files are JSON/JSONC:
 `size` accepts a fixed number of rows/columns, a percentage (`"45%"`) or
 `"*"`/omitted for the remaining space. Widgets are referenced by name; the
 kernel decides which renderer each name maps to.
+
+## Documentation
+
+- `docs/layout-schema.md` — formal JSONC layout schema (document structure,
+  area grammar, constraint syntax, comments dialect, embedded defaults).
+- `docs/authoring.md` — step-by-step guide: writing, validating and
+  installing layouts, widget ids, modes and terminal-size thresholds.
+- `docs/decisions.md` — design decision log (DR-3, unvalidated widget ids,
+  name-based merging).
 
 ## Personalization model
 
