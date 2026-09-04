@@ -17,7 +17,7 @@ pub use loader::{
     DEFAULT_LAYOUT_SOURCES as default_layout_sources,
 };
 pub use mode::{
-    detect_effective_layout, layout_index_from_mode, layout_mode_for_name,
-    mode_from_layout_index, EffectiveLayout, LayoutMode, LAYOUT_MODE_NAMES,
+    detect_effective_layout, layout_index_from_mode, layout_mode_for_name, mode_from_layout_index,
+    EffectiveLayout, LayoutMode, LAYOUT_MODE_NAMES,
 };
 pub use model::{Direction, LayoutArea, LayoutConstraint, LayoutDef, LayoutNode};

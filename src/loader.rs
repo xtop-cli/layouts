@@ -10,13 +10,19 @@ use crate::model::LayoutDef;
 /// Default layout assets shipped with the crate: (file stem, raw source).
 /// Order matters: it defines the stable default palette order (index 0-6).
 pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[
-    ("dashboard", include_str!("../assets/layouts/dashboard.jsonc")),
+    (
+        "dashboard",
+        include_str!("../assets/layouts/dashboard.jsonc"),
+    ),
     ("vertical", include_str!("../assets/layouts/vertical.jsonc")),
     (
         "horizontal",
         include_str!("../assets/layouts/horizontal.jsonc"),
     ),
-    ("cpu_focus", include_str!("../assets/layouts/cpu_focus.jsonc")),
+    (
+        "cpu_focus",
+        include_str!("../assets/layouts/cpu_focus.jsonc"),
+    ),
     (
         "memory_focus",
         include_str!("../assets/layouts/memory_focus.jsonc"),
@@ -35,9 +41,7 @@ pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[
 pub fn default_layouts() -> Vec<LayoutDef> {
     DEFAULT_LAYOUT_SOURCES
         .iter()
-        .map(|(_, src)| {
-            parse_layout(src).expect("embedded default layout assets must parse")
-        })
+        .map(|(_, src)| parse_layout(src).expect("embedded default layout assets must parse"))
         .collect()
 }
 
