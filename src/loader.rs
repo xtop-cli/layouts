@@ -12,28 +12,28 @@ use crate::model::LayoutDef;
 pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[
     (
         "dashboard",
-        include_str!("../assets/layouts/dashboard.jsonc"),
+        include_str!("../layouts/default/dashboard.jsonc"),
     ),
-    ("vertical", include_str!("../assets/layouts/vertical.jsonc")),
+    ("vertical", include_str!("../layouts/default/vertical.jsonc")),
     (
         "horizontal",
-        include_str!("../assets/layouts/horizontal.jsonc"),
+        include_str!("../layouts/default/horizontal.jsonc"),
     ),
     (
         "cpu_focus",
-        include_str!("../assets/layouts/cpu_focus.jsonc"),
+        include_str!("../layouts/default/cpu_focus.jsonc"),
     ),
     (
         "memory_focus",
-        include_str!("../assets/layouts/memory_focus.jsonc"),
+        include_str!("../layouts/default/memory_focus.jsonc"),
     ),
     (
         "network_focus",
-        include_str!("../assets/layouts/network_focus.jsonc"),
+        include_str!("../layouts/default/network_focus.jsonc"),
     ),
     (
         "process_focus",
-        include_str!("../assets/layouts/process_focus.jsonc"),
+        include_str!("../layouts/default/process_focus.jsonc"),
     ),
 ];
 
