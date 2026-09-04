@@ -14,7 +14,10 @@ pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[
         "dashboard",
         include_str!("../layouts/default/dashboard.jsonc"),
     ),
-    ("vertical", include_str!("../layouts/default/vertical.jsonc")),
+    (
+        "vertical",
+        include_str!("../layouts/default/vertical.jsonc"),
+    ),
     (
         "horizontal",
         include_str!("../layouts/default/horizontal.jsonc"),
@@ -47,8 +50,13 @@ pub fn default_layouts() -> Vec<LayoutDef> {
 
 /// Parse one layout definition from raw JSON/JSONC source.
 pub fn parse_layout(source: &str) -> Option<LayoutDef> {
+    parse_layout_err(source).ok()
+}
+
+/// Parse with a human-readable error (for `xtop layout check`).
+pub fn parse_layout_err(source: &str) -> Result<LayoutDef, String> {
     let cleaned = strip_jsonc_comments(source);
-    serde_json::from_str::<LayoutDef>(&cleaned).ok()
+    serde_json::from_str::<LayoutDef>(&cleaned).map_err(|e| e.to_string())
 }
 
 /// Load every `*.json`/`*.jsonc` layout from a directory.

@@ -5,11 +5,12 @@
 //! to concrete constraints at render time.
 
 use serde::de::{self, MapAccess, Visitor};
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Split direction of a container.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Direction {
     Horizontal,
     Vertical,
@@ -195,5 +196,102 @@ impl<'de> Deserialize<'de> for LayoutDef {
         }
 
         deserializer.deserialize_struct("LayoutDef", &["name", "root"], LayoutVisitor)
+    }
+}
+
+// Mirror serialization: `LayoutDef` serializes to the exact JSON shape the
+// custom deserializer accepts (name/root, size as number|percent|"*", widget
+// leaf or direction+areas split).
+
+impl Serialize for LayoutArea {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        match &self.constraint {
+            LayoutConstraint::Length(n) => {
+                map.serialize_entry("size", n)?;
+            }
+            LayoutConstraint::Percentage(p) => {
+                map.serialize_entry("size", &format!("{p}%"))?;
+            }
+            LayoutConstraint::Fill => {
+                map.serialize_entry("size", "*")?;
+            }
+        }
+        match &self.node {
+            LayoutNode::Widget { name } => {
+                map.serialize_entry("widget", name)?;
+            }
+            LayoutNode::Split { direction, areas } => {
+                let dir = match direction {
+                    Direction::Horizontal => "horizontal",
+                    Direction::Vertical => "vertical",
+                };
+                map.serialize_entry("direction", dir)?;
+                map.serialize_entry("areas", areas)?;
+            }
+        }
+        map.end()
+    }
+}
+
+impl Serialize for LayoutNode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        match self {
+            LayoutNode::Widget { name } => {
+                map.serialize_entry("widget", name)?;
+            }
+            LayoutNode::Split { direction, areas } => {
+                let dir = match direction {
+                    Direction::Horizontal => "horizontal",
+                    Direction::Vertical => "vertical",
+                };
+                map.serialize_entry("direction", dir)?;
+                map.serialize_entry("areas", areas)?;
+            }
+        }
+        map.end()
+    }
+}
+
+impl Serialize for LayoutDef {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("name", &self.name)?;
+        map.serialize_entry("root", &self.root)?;
+        map.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_def_serde_roundtrip() {
+        let def = LayoutDef {
+            name: "RT".into(),
+            root: LayoutNode::Split {
+                direction: Direction::Vertical,
+                areas: vec![LayoutArea {
+                    constraint: LayoutConstraint::Length(3),
+                    node: LayoutNode::Widget {
+                        name: "header".into(),
+                    },
+                }],
+            },
+        };
+        let json = serde_json::to_string(&def).unwrap();
+        let back: LayoutDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(def, back);
     }
 }

@@ -13,7 +13,7 @@ mod mode;
 mod model;
 
 pub use loader::{
-    default_layouts, load_layouts_from_dir, merge_layouts, parse_layout,
+    default_layouts, load_layouts_from_dir, merge_layouts, parse_layout, parse_layout_err,
     DEFAULT_LAYOUT_SOURCES as default_layout_sources,
 };
 pub use mode::{
