@@ -1,0 +1,52 @@
+{
+    // Detail Network: network-focused preset (UX8.5 density redesign, DR-UX6
+    // extra, not a mode). Big per-interface network box ("ifaces: all"
+    // discriminates every interface into its own row + aggregate dual chart),
+    // a side column of summary / disk_io r/w chart / memory, and a bottom
+    // process strip that normalizes CPU% against the whole machine ("total").
+    //
+    // Row math: root = header(3) + Fill body; the body splits tile exactly at
+    // every height (70+30 net/processes, 60+40 network/side, 30+40+30
+    // summary/disk_io/memory) so no split ever leaves an orphan band. The
+    // network box and the processes list are the absorbing widgets; at 100x34
+    // they get 22 and 9 rows (31 body rows), at 120x40 26 and 11 (37), at
+    // 80x24 15 and 6 (21) — charts/list content grows to fill each box.
+    "name": "Detail Network",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "vertical",
+                "size": "*",
+                "areas": [
+                    {
+                        "direction": "horizontal",
+                        "size": "70%",
+                        "areas": [
+                            {
+                                "widget": "network",
+                                "size": "60%",
+                                "options": { "ifaces": "all" }
+                            },
+                            {
+                                "direction": "vertical",
+                                "size": "40%",
+                                "areas": [
+                                    { "widget": "summary", "size": "30%" },
+                                    { "widget": "disk_io", "size": "40%" },
+                                    { "widget": "memory", "size": "30%" }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "widget": "processes",
+                        "size": "30%",
+                        "options": { "cpu": "total" }
+                    }
+                ]
+            }
+        ]
+    }
+}

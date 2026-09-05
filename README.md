@@ -8,11 +8,30 @@ thin:
 
 - `model` — layout tree (`LayoutDef` → splits of areas → widget leaves),
   serializable from JSON/JSONC, no UI dependencies.
-- `default/` — 7 embedded **default layouts** shipped with the crate
-  (`Dashboard`, `Vertical`, `Horizontal`, `CPU Focus`, `Memory Focus`,
-  `Network Focus`, `Process Focus`). On startup the kernel writes these as
-  editable templates into the user config layouts dir when it initializes
-  its assets (never overwriting files the user already edited).
+- `default/` — 10 embedded **default layouts** shipped with the crate: the
+  seven mode-bound layouts (`Dashboard`, `Vertical`, `Horizontal`, `CPU
+  Focus`, `Memory Focus`, `Network Focus`, `Process Focus`) plus three
+  preset extras — `Detail Dashboard`, `Detail Network`, `Detail
+  Processes` (`detail_*.jsonc`) — that sit after the modes in file order
+  and showcase per-widget `options` (DR-UX6).
+
+  Preset table (UX8.5: dense full-monitor pages with zero orphan rows at
+  common sizes — every split is percentage-exact or Fill-absorbed, see
+  `docs/authoring.md` "Density guidance"):
+
+  | File | `"name"` | Composition at 100x34 (31 body rows) | Widgets |
+  |---|---|---|---|
+  | `detail_dashboard.jsonc` | `Detail Dashboard` | header → 18-row monitor band (cpu left, 36% side column of summary/sensors) → 13-row full-width processes | header, cpu, summary, sensors, processes |
+  | `detail_network.jsonc` | `Detail Network` | header → 22-row band (network per-iface box + summary/disk_io/memory column) → 9-row processes | header, network, disk_io, summary, memory, processes |
+  | `detail_processes.jsonc` | `Detail Processes` | header → 8-row stat strip (summary/cpu/memory/storage/network) → 23-row full-height processes | header, summary, cpu, memory, storage, network, processes |
+
+  `summary` (load/uptime/process-count panel) and `sensors` (per-core
+  temperature heat view) are the UX8.4 widget-wave arrivals placed by the
+  UX8.5 presets; names resolve at render time like every other widget id.
+  On startup the kernel writes
+  these as editable templates into the user config layouts dir when it
+  initializes its assets (never overwriting files the user already
+  edited).
 - `custom/` — **community layouts**: installable extras, shared via PRs.
   They never ship in the binary; the kernel's `xtop layout install <name>`
   fetches this folder and copies the layout into the user config layouts
@@ -78,7 +97,9 @@ kernel decides which renderer each name maps to.
 ## Personalization model
 
 1. **Defaults** are compiled into the binary and copied as templates to
-   `~/.config/xtop/layouts/` on first run.
+   `~/.config/xtop/layouts/` on first run (seven mode-bound layouts first,
+   then the `detail_*` preset extras — order is part of the mode-slot
+   contract, see `docs/authoring.md` §6).
 2. **Overrides**: edit a file whose `"name"` matches a default → it replaces
    that default in place (same palette position, no duplicates).
 3. **New layouts**: any extra file shows up as an additional layout.

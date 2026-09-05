@@ -43,6 +43,11 @@ pub enum LayoutNode {
     },
     Widget {
         name: String,
+        /// Optional per-widget display options (DR-UX1): an opaque JSON
+        /// object passed through verbatim to the widget renderer (see the
+        /// widget-api contract). `None` when the layout has no `options`
+        /// key on this node — renderers then use their default behavior.
+        options: Option<serde_json::Value>,
     },
 }
 
@@ -71,6 +76,12 @@ struct LayoutAreaRaw {
     direction: Option<String>,
     #[serde(default)]
     areas: Option<Vec<LayoutAreaRaw>>,
+    /// Passthrough display options of a widget leaf (DR-UX1). Absent key and
+    /// explicit `null` both deserialize to `None`; the model never
+    /// interprets the content (renderers own the semantics), so unknown keys
+    /// inside the object are preserved verbatim.
+    #[serde(default)]
+    options: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -101,7 +112,10 @@ impl TryFrom<LayoutAreaRaw> for LayoutArea {
         };
 
         let node = if let Some(name) = raw.widget {
-            LayoutNode::Widget { name }
+            LayoutNode::Widget {
+                name,
+                options: raw.options,
+            }
         } else if let Some(dir) = raw.direction {
             let direction = match dir.to_lowercase().as_str() {
                 "horizontal" => Direction::Horizontal,
@@ -166,6 +180,7 @@ impl<'de> Deserialize<'de> for LayoutDef {
                         widget: None,
                         direction: None,
                         areas: None,
+                        options: None,
                     },
                 };
                 let mut found_name = false;
@@ -221,8 +236,13 @@ impl Serialize for LayoutArea {
             }
         }
         match &self.node {
-            LayoutNode::Widget { name } => {
+            LayoutNode::Widget { name, options } => {
                 map.serialize_entry("widget", name)?;
+                // Only emitted when present: layouts without options
+                // serialize byte-identically to the pre-DR-UX1 format.
+                if let Some(options) = options {
+                    map.serialize_entry("options", options)?;
+                }
             }
             LayoutNode::Split { direction, areas } => {
                 let dir = match direction {
@@ -244,8 +264,13 @@ impl Serialize for LayoutNode {
     {
         let mut map = serializer.serialize_map(None)?;
         match self {
-            LayoutNode::Widget { name } => {
+            LayoutNode::Widget { name, options } => {
                 map.serialize_entry("widget", name)?;
+                // Only emitted when present: layouts without options
+                // serialize byte-identically to the pre-DR-UX1 format.
+                if let Some(options) = options {
+                    map.serialize_entry("options", options)?;
+                }
             }
             LayoutNode::Split { direction, areas } => {
                 let dir = match direction {
@@ -275,6 +300,7 @@ impl Serialize for LayoutDef {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_layout_def_serde_roundtrip() {
@@ -286,6 +312,7 @@ mod tests {
                     constraint: LayoutConstraint::Length(3),
                     node: LayoutNode::Widget {
                         name: "header".into(),
+                        options: None,
                     },
                 }],
             },
@@ -293,5 +320,95 @@ mod tests {
         let json = serde_json::to_string(&def).unwrap();
         let back: LayoutDef = serde_json::from_str(&json).unwrap();
         assert_eq!(def, back);
+    }
+
+    #[test]
+    fn test_widget_options_roundtrip_preserves_content() {
+        // Options are an opaque passthrough: nested objects, arrays and
+        // unknown keys must survive the round trip untouched.
+        let options = json!({
+            "cpu": "total",
+            "cores": { "filter": [0, 2, "4-7"], "note": null },
+            "show_freq": true,
+        });
+        let def = LayoutDef {
+            name: "RT".into(),
+            root: LayoutNode::Split {
+                direction: Direction::Vertical,
+                areas: vec![
+                    LayoutArea {
+                        constraint: LayoutConstraint::Length(3),
+                        node: LayoutNode::Widget {
+                            name: "header".into(),
+                            options: None,
+                        },
+                    },
+                    LayoutArea {
+                        constraint: LayoutConstraint::Fill,
+                        node: LayoutNode::Widget {
+                            name: "cpu".into(),
+                            options: Some(options.clone()),
+                        },
+                    },
+                ],
+            },
+        };
+        let json = serde_json::to_string(&def).unwrap();
+        assert!(json.contains("\"options\":"));
+        let back: LayoutDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(def, back);
+        // Spot-check the passthrough content on the parsed side.
+        let LayoutNode::Split { areas, .. } = &back.root else {
+            panic!("expected split root");
+        };
+        let LayoutNode::Widget {
+            name,
+            options: parsed_options,
+        } = &areas[1].node
+        else {
+            panic!("expected widget node");
+        };
+        assert_eq!(name, "cpu");
+        assert_eq!(parsed_options.as_ref().unwrap(), &options);
+    }
+
+    #[test]
+    fn test_widget_without_options_serializes_unchanged() {
+        // Backward compatibility (DR-UX2): no options -> byte-identical JSON
+        // to the pre-DR-UX1 mirror serializer.
+        let def = LayoutDef {
+            name: "RT".into(),
+            root: LayoutNode::Split {
+                direction: Direction::Vertical,
+                areas: vec![LayoutArea {
+                    constraint: LayoutConstraint::Length(3),
+                    node: LayoutNode::Widget {
+                        name: "header".into(),
+                        options: None,
+                    },
+                }],
+            },
+        };
+        let json = serde_json::to_string(&def).unwrap();
+        assert_eq!(
+            json,
+            r#"{"name":"RT","root":{"direction":"vertical","areas":[{"size":3,"widget":"header"}]}}"#
+        );
+        let back: LayoutDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(def, back);
+    }
+
+    #[test]
+    fn test_widget_options_absent_and_null_parse_to_none() {
+        let absent = parse_root_area(r#"{"widget":"cpu"}"#);
+        assert!(matches!(absent, LayoutNode::Widget { options: None, .. }));
+        let null = parse_root_area(r#"{"widget":"cpu","options":null}"#);
+        assert!(matches!(null, LayoutNode::Widget { options: None, .. }));
+    }
+
+    /// Parse a bare root area object (the grammar every area shares).
+    fn parse_root_area(src: &str) -> LayoutNode {
+        let raw: LayoutAreaRaw = serde_json::from_str(src).unwrap();
+        LayoutArea::try_from(raw).unwrap().node
     }
 }

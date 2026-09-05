@@ -24,8 +24,9 @@ that never needs the widget registry at compile time. Consequences accepted:
   a generated `.schema.json` (nothing consumes a JSON Schema file today).
 - Widget ids are opaque strings (next entry), and nothing in this repo can
   verify them against the widgets or plugins repos.
-- The palette ordering contract (defaults in slots 0–6, fixed order) is
-  enforced by `DEFAULT_LAYOUT_SOURCES` order + `mode_from_layout_index` +
+- The palette ordering contract (mode-bound defaults in slots 0–6, fixed
+  order, preset/user extras appended after them) is enforced by
+  `DEFAULT_LAYOUT_SOURCES` order + `mode_from_layout_index` +
   `merge_layouts` semantics and pinned by unit tests (see `docs/authoring.md`
   §6).
 
@@ -41,12 +42,10 @@ are enabled).
 render time against, in order: plugin widgets (e.g. `samurai`), then the
 style-chosen pack, then the base pack (`xtop/src/ui/layout/engine.rs`,
 `render_named`). If nothing matches, the id **renders nothing** — the layout
-area is left blank. As of the kernel snapshot read for this milestone, the
-kernel does **not** warn on unknown ids inside a layout: DR-3's "visible
-one-time kernel warning" is tracked on the kernel side as milestone M2.7 and
-is not implemented yet (only the full-screen path shows `No widget
-registered for '<name>'`, `xtop/src/ui/screen.rs`). This repo's only related
-reporting is the loader skipping structurally invalid *files* on stderr
+area is left blank; the kernel reports unknown names once per process on
+stderr (`warn_unknown_widgets`, `engine.rs`) and the full-screen path shows
+`No widget registered for '<name>'` (`xtop/src/ui/screen.rs`). This repo's
+own reporting is limited to skipping structurally invalid *files* on stderr
 (`load_layouts_from_dir`); a file with a valid shape but an unknown widget
 id parses fine.
 
@@ -62,9 +61,10 @@ structural safety net that *does* exist is `xtop layout check` (kernel
 **Decision.** Merging is by the layout `"name"` field with exact,
 case-sensitive equality (`merge_layouts` in `src/loader.rs`): a user file
 replacing a default keeps the default's palette slot; new names are
-appended after the seven defaults. `mode_from_layout_index` maps only slots
-0–6 to modes; custom layouts beyond them are addressed by name, and the
-kernel persists/restores them by name (`config.layout_name`).
+appended after the defaults. `mode_from_layout_index` maps only slots 0–6
+to modes; everything beyond them (the three embedded `detail_*` preset
+extras at slots 7–9 and user layouts) is addressed by name, and the kernel
+persists/restores layouts by name (`config.layout_name`).
 
 **Why.** Palette order and mode ↔ layout coupling must stay stable while
 users freely customize; see `docs/authoring.md` §6 for the contract this

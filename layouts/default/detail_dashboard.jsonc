@@ -1,0 +1,63 @@
+{
+    // Detail Dashboard: the full-monitor page (UX8.5 density redesign, DR-UX6
+    // extra, not a mode).
+    //
+    // Composition at 100x34 (31 body rows): header strip (3), then a 58%
+    // monitor band (18 rows: cpu left spanning tall + summary/sensors right
+    // column) and a full-width processes table (42%, 13 rows) on the bottom.
+    // Row math: every vertical/horizontal split below tiles its parent with
+    // NO orphan rows — splits use percentages that sum to 100 exactly (body
+    // 58+42, right column 42+58), and the fixed 3-row header sits next to a
+    // Fill body so the leftover rows are always absorbed. Percentages are
+    // relative to the split they live in, so the same tree is dense at
+    // 80x24 (21 body rows -> 12 + 9), 100x34 and 120x40 (37 -> 21 + 16).
+    //
+    // Boxes that absorb extra rows with content (cpu core grid + freq/temp +
+    // multi-row history, processes list) get the tall spans; summary and
+    // sensors (UX8.4 registry additions) are given the fixed-height right
+    // column. Memory/network/disk_io stay in Detail Network / Detail
+    // Processes + the mode defaults, where they can keep useful heights: a
+    // three-up gauge band can never be >= 12 rows tall next to a dense cpu +
+    // summary/sensors + processes page at 100x34 (see docs/authoring.md,
+    // "Density guidance").
+    "name": "Detail Dashboard",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "vertical",
+                "size": "*",
+                "areas": [
+                    {
+                        // Monitor band: cpu (tall, left) + summary/sensors
+                        // column. cpu takes all width the 36% side column
+                        // does not use, so it grows with the terminal.
+                        "direction": "horizontal",
+                        "size": "58%",
+                        "areas": [
+                            {
+                                "widget": "cpu",
+                                "size": "*",
+                                "options": { "cores": "all", "show_freq": true }
+                            },
+                            {
+                                "direction": "vertical",
+                                "size": "36%",
+                                "areas": [
+                                    { "widget": "summary", "size": "42%" },
+                                    { "widget": "sensors", "size": "58%" }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "widget": "processes",
+                        "size": "42%",
+                        "options": { "cpu": "total" }
+                    }
+                ]
+            }
+        ]
+    }
+}

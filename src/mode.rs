@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::LayoutDef;
 
-/// The built-in layout modes. Extra user layouts are not represented here:
-/// they are addressed by name through [`LayoutDef::name`].
+/// The built-in layout modes. Layouts outside these seven — the embedded
+/// `detail_*` preset extras (DR-UX6) and user layouts — are not represented
+/// here: they are addressed by name through [`LayoutDef::name`] and keep the
+/// mode of the previously active built-in for degradation purposes.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum LayoutMode {
     Dashboard,

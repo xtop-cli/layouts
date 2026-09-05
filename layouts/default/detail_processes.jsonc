@@ -1,0 +1,46 @@
+{
+    // Detail Processes: process-focused preset (UX8.5 density redesign,
+    // DR-UX6 extra, not a mode). A compact 8-row stat strip on top — summary
+    // plus the cpu mini history / memory / storage / network gauges — and the
+    // full-height processes table below (every remaining row: Fill), showing
+    // BOTH CPU bases at once ("both": the classic per-core CPU% column plus
+    // the normalized whole-machine column).
+    //
+    // Row math: the strip is a fixed 8 rows and processes is Fill, so the
+    // processes table is exactly "the whole terminal minus header and strip"
+    // at every size (23 rows at 100x34, 13 at 80x24, 29 at 120x40) — no
+    // orphan band and no percentage rounding against a fixed sibling. Inside
+    // the strip the five gauges split the full width with percentages that
+    // sum to 100 (20+28+18+17+17). Eight rows give every strip gauge two
+    // border rows plus enough interior rows for its rows/chart content to
+    // grow (UX8.4 dense widgets).
+    "name": "Detail Processes",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "vertical",
+                "size": "*",
+                "areas": [
+                    {
+                        "direction": "horizontal",
+                        "size": 8,
+                        "areas": [
+                            { "widget": "summary", "size": "20%" },
+                            { "widget": "cpu", "size": "28%" },
+                            { "widget": "memory", "size": "18%" },
+                            { "widget": "storage", "size": "17%" },
+                            { "widget": "network", "size": "17%" }
+                        ]
+                    },
+                    {
+                        "widget": "processes",
+                        "size": "*",
+                        "options": { "cpu": "both" }
+                    }
+                ]
+            }
+        ]
+    }
+}
