@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.87"
 license = "MIT"
 description = "Data-driven layout definitions (model, defaults, loading) for the xtop TUI system monitor"
-repository = "https://github.com/xtop-cli/layout"
+repository = "https://github.com/xtop-cli/layouts"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
