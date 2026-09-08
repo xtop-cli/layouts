@@ -1,4 +1,5 @@
-# xtop-layouts
+<h1 align="center">
+<img src="https://raw.githubusercontent.com/xtop-cli/web/main/public/img/logo.png" width="100px" alt="Xtop logo" />Layouts</h1>
 
 Data-driven **layout** definitions for the [xtop](https://github.com/xtop-cli/xtop)
 TUI system monitor.
