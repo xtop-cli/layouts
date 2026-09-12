@@ -1,0 +1,29 @@
+{
+    // WASM Procs Focus: runtime gauges on top, big process table below.
+    //
+    // Requirements: a kernel built with `--features plugin-wasm,plugin-external`
+    // and the example widgets from https://github.com/xtop-cli/plugins
+    // (examples/wasm + examples/external) installed in the user config dirs.
+    //
+    //   wasm-cpu    sandboxed WASM gauge + history sparkline
+    //   py-cpu      Python helper process
+    //   wasm-procs  top-process table rendered by a WASM guest
+    //
+    // Install this layout with `xtop layout install wasm_procs_focus`.
+    "name": "WASM Procs Focus",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "horizontal",
+                "size": "32%",
+                "areas": [
+                    { "widget": "wasm-cpu", "size": "50%" },
+                    { "widget": "py-cpu", "size": "50%" }
+                ]
+            },
+            { "widget": "wasm-procs", "size": "*" }
+        ]
+    }
+}

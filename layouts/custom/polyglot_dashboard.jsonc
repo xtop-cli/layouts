@@ -1,0 +1,41 @@
+{
+    // Polyglot Dashboard: runtime widgets from other languages mixed with
+    // compiled-in packs.
+    //
+    // Requirements: a kernel built with `--features plugin-wasm,plugin-external`
+    // and the example widgets from https://github.com/xtop-cli/plugins
+    // (examples/wasm + examples/external) installed in the user config dirs.
+    //
+    //   wasm-clock / wasm-cpu / wasm-procs  sandboxed WASM modules
+    //   lua-clock / py-cpu / c-ticker       helper processes (Lua, Python, C)
+    //   header / network / storage          compiled-in packs
+    //
+    // Install this layout with `xtop layout install polyglot_dashboard`.
+    "name": "Polyglot Dashboard",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "horizontal",
+                "size": "24%",
+                "areas": [
+                    { "widget": "wasm-clock", "size": "25%" },
+                    { "widget": "lua-clock", "size": "25%" },
+                    { "widget": "c-ticker", "size": "25%" },
+                    { "widget": "py-cpu", "size": "25%" }
+                ]
+            },
+            {
+                "direction": "horizontal",
+                "size": "40%",
+                "areas": [
+                    { "widget": "wasm-cpu", "size": "40%" },
+                    { "widget": "network", "size": "30%" },
+                    { "widget": "storage", "size": "30%" }
+                ]
+            },
+            { "widget": "wasm-procs", "size": "*" }
+        ]
+    }
+}

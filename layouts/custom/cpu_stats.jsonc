@@ -1,0 +1,37 @@
+{
+    // CPU Stats: the Python statistical chart in the spotlight.
+    //
+    // Requirements: a kernel built with `--features plugin-wasm,plugin-external`
+    // and the example widgets from https://github.com/xtop-cli/plugins
+    // (examples/wasm + examples/external) installed in the user config dirs.
+    //
+    //   py-cpu-chart  Python: mean, sigma, moving average, percentiles
+    //   py-cpu        Python: gauge + sparkline
+    //   wasm-cpu      sandboxed WASM gauge + history sparkline
+    //   wasm-procs    top-process table rendered by a WASM guest
+    //
+    // Install this layout with `xtop layout install cpu_stats`.
+    "name": "CPU Stats",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "direction": "horizontal",
+                "size": "55%",
+                "areas": [
+                    { "widget": "py-cpu-chart", "size": "70%" },
+                    {
+                        "direction": "vertical",
+                        "size": "30%",
+                        "areas": [
+                            { "widget": "py-cpu", "size": "50%" },
+                            { "widget": "wasm-cpu", "size": "50%" }
+                        ]
+                    }
+                ]
+            },
+            { "widget": "wasm-procs", "size": "*" }
+        ]
+    }
+}
