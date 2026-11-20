@@ -1,4 +1,4 @@
-//! Loading layout definitions: embedded defaults and user-provided files.
+//! Loading layout definitions: the embedded base and user-provided files.
 //!
 //! Files are JSON/JSONC with a single layout per file (see `model.rs`).
 
@@ -7,59 +7,18 @@ use std::path::Path;
 
 use crate::model::LayoutDef;
 
-/// Default layout assets shipped with the crate: (file stem, raw source).
-/// Order matters: slots 0-6 define the stable default *mode* palette order
-/// (mode.rs contract: `mode_from_layout_index` maps exactly these seven);
-/// slots 7+ are mode-independent preset extras (DR-UX6), appended AFTER the
-/// mode-bound defaults so mode indices never move. The kernel cycles every
-/// entry by name and `merge_layouts` keeps user files after all of them.
-pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[
-    (
-        "dashboard",
-        include_str!("../layouts/default/dashboard.jsonc"),
-    ),
-    (
-        "vertical",
-        include_str!("../layouts/default/vertical.jsonc"),
-    ),
-    (
-        "horizontal",
-        include_str!("../layouts/default/horizontal.jsonc"),
-    ),
-    (
-        "cpu_focus",
-        include_str!("../layouts/default/cpu_focus.jsonc"),
-    ),
-    (
-        "memory_focus",
-        include_str!("../layouts/default/memory_focus.jsonc"),
-    ),
-    (
-        "network_focus",
-        include_str!("../layouts/default/network_focus.jsonc"),
-    ),
-    (
-        "process_focus",
-        include_str!("../layouts/default/process_focus.jsonc"),
-    ),
-    // Detail preset extras (UX5.3, renamed in UX7.5): named extras after
-    // the seven mode-bound defaults. They reference only registry widget
-    // names and showcase per-widget `options` (see docs/layout-schema.md).
-    (
-        "detail_dashboard",
-        include_str!("../layouts/default/detail_dashboard.jsonc"),
-    ),
-    (
-        "detail_network",
-        include_str!("../layouts/default/detail_network.jsonc"),
-    ),
-    (
-        "detail_processes",
-        include_str!("../layouts/default/detail_processes.jsonc"),
-    ),
-];
+/// Base layout asset embedded in the crate.
+///
+/// Only the primary Dashboard layout stays embedded. The other mode layouts,
+/// the detail presets and the community layouts are plain JSONC files under
+/// `layouts/` and are downloaded on demand from the official catalog into the
+/// user config directory.
+pub const DEFAULT_LAYOUT_SOURCES: &[(&str, &str)] = &[(
+    "dashboard",
+    include_str!("../layouts/default/dashboard.jsonc"),
+)];
 
-/// Parse the embedded default layouts (in default palette order).
+/// Parse the embedded base layout (Dashboard).
 pub fn default_layouts() -> Vec<LayoutDef> {
     DEFAULT_LAYOUT_SOURCES
         .iter()
@@ -178,48 +137,45 @@ mod tests {
     use crate::model::{LayoutConstraint, LayoutNode};
     use serde_json::json;
 
+    /// Parse every layout file shipped in `layouts/default/` from disk.
+    fn shipped_layouts() -> Vec<LayoutDef> {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("layouts/default");
+        load_layouts_from_dir(&dir)
+    }
+
+    fn shipped(name: &str) -> LayoutDef {
+        shipped_layouts()
+            .into_iter()
+            .find(|layout| layout.name == name)
+            .unwrap_or_else(|| panic!("shipped layout '{name}' not found"))
+    }
+
     #[test]
-    fn test_default_layouts_count_and_order() {
+    fn test_embedded_base_layout_is_dashboard() {
         let layouts = default_layouts();
-        // 7 mode-bound defaults first (mode.rs slot contract), then the 3
-        // detail preset extras (DR-UX6, renamed in UX7.5); the order pins
-        // palette indices.
-        assert_eq!(layouts.len(), 10);
-        let names: Vec<&str> = layouts.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(layouts.len(), 1, "only the primary layout is embedded");
+        assert_eq!(layouts[0].name, "Dashboard");
+    }
+
+    #[test]
+    fn test_all_shipped_layout_files_parse() {
+        let layouts = shipped_layouts();
         assert_eq!(
-            names,
-            [
-                "Dashboard",
-                "Vertical",
-                "Horizontal",
-                "CPU Focus",
-                "Memory Focus",
-                "Network Focus",
-                "Process Focus",
-                "Detail Dashboard",
-                "Detail Network",
-                "Detail Processes"
-            ]
+            layouts.len(),
+            10,
+            "10 JSONC layout files ship in layouts/default"
         );
     }
 
     #[test]
     fn test_preset_extras_parse_with_widget_options() {
-        // UX5.3: the detail presets sit AFTER the seven mode-bound defaults
-        // (indices 7-9), stay addressable by name, and carry the per-widget
-        // `options` the roadmap assigns to them (processes CPU basis, cpu
-        // core/freq display, network iface discrimination).
-        let layouts = default_layouts();
-        assert_eq!(layouts[7].name, "Detail Dashboard");
-        assert_eq!(layouts[8].name, "Detail Network");
-        assert_eq!(layouts[9].name, "Detail Processes");
-        // Slots 0-6 keep their mode names (mode index contract intact).
-        assert_eq!(layouts[0].name, "Dashboard");
-        assert_eq!(layouts[6].name, "Process Focus");
+        // The detail presets are external JSONC files under layouts/default;
+        // they are loaded from disk here, not embedded in the crate.
+        let dashboard = shipped("Detail Dashboard");
+        let network = shipped("Detail Network");
+        let processes = shipped("Detail Processes");
 
-        // Every preset references only registry widget ids and at least one
-        // widget node carries an `options` object.
-        for def in &layouts[7..] {
+        for def in [&dashboard, &network, &processes] {
             let (mut widgets, mut options) = (0usize, 0usize);
             collect_widgets(&def.root, &mut widgets, &mut options);
             assert!(widgets > 0, "{}: must reference widgets", def.name);
@@ -228,15 +184,15 @@ mod tests {
 
         // Spot-check the flagship option keys of the presets.
         assert_eq!(
-            find_options(&layouts[7].root, "processes"),
+            find_options(&dashboard.root, "processes"),
             Some(serde_json::json!({ "cpu": "total" }))
         );
         assert_eq!(
-            find_options(&layouts[7].root, "cpu"),
+            find_options(&dashboard.root, "cpu"),
             Some(serde_json::json!({ "cores": "all", "show_freq": true }))
         );
         assert_eq!(
-            find_options(&layouts[9].root, "processes"),
+            find_options(&processes.root, "processes"),
             Some(serde_json::json!({ "cpu": "both" }))
         );
     }
@@ -382,7 +338,10 @@ mod tests {
         //     measured against the full split, not the leftover).
         // Walk every split of every detail preset and enforce that rule.
         let mut failures: Vec<String> = Vec::new();
-        for def in &default_layouts()[7..] {
+        for def in shipped_layouts()
+            .iter()
+            .filter(|layout| layout.name.starts_with("Detail "))
+        {
             check_tiling(&def.root, &def.name, &mut failures);
         }
         assert!(
@@ -449,8 +408,12 @@ mod tests {
             "summary",
             "sensors",
         ];
-        let layouts = default_layouts();
-        for def in &layouts[7..] {
+        let presets = [
+            shipped("Detail Dashboard"),
+            shipped("Detail Network"),
+            shipped("Detail Processes"),
+        ];
+        for def in &presets {
             let names = collect_names(&def.root);
             assert!(!names.is_empty(), "{}: must reference widgets", def.name);
             for name in &names {
@@ -462,21 +425,21 @@ mod tests {
             }
         }
         // The full-monitor preset hosts both new dense widgets.
-        let dashboard = collect_names(&layouts[7].root);
+        let dashboard = collect_names(&presets[0].root);
         for required in ["header", "cpu", "summary", "sensors", "processes"] {
             assert!(
                 dashboard.iter().any(|n| n == required),
                 "Detail Dashboard must reference '{required}'"
             );
         }
-        let network = collect_names(&layouts[8].root);
+        let network = collect_names(&presets[1].root);
         for required in ["network", "disk_io", "summary", "processes"] {
             assert!(
                 network.iter().any(|n| n == required),
                 "Detail Network must reference '{required}'"
             );
         }
-        let processes = collect_names(&layouts[9].root);
+        let processes = collect_names(&presets[2].root);
         for required in ["summary", "cpu", "processes"] {
             assert!(
                 processes.iter().any(|n| n == required),

@@ -2,7 +2,7 @@
 //! monitor.
 //!
 //! The crate owns the layout *model* (tree of areas and widgets), the
-//! *loading* logic (embedded default layouts plus user JSONC files) and the
+//! *loading* logic (the embedded Dashboard base plus user JSONC files) and the
 //! *modes* (built-in layout modes and terminal-size degradation rules).
 //!
 //! It has no UI dependencies: the kernel translates the model to concrete
