@@ -1,0 +1,16 @@
+{
+    // Process Tree: opt-in hierarchy view, not part of the default set.
+    // The processes widget builds parent/child rows from ProcessInfo::parent_pid.
+    "name": "Process Tree",
+    "root": {
+        "direction": "vertical",
+        "areas": [
+            { "widget": "header", "size": 3 },
+            {
+                "widget": "processes",
+                "size": "*",
+                "options": { "tree": true }
+            }
+        ]
+    }
+}
