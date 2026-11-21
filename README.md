@@ -9,12 +9,13 @@ thin:
 
 - `model` — layout tree (`LayoutDef` → splits of areas → widget leaves),
   serializable from JSON/JSONC, no UI dependencies.
-- `default/` — 10 embedded **default layouts** shipped with the crate: the
-  seven mode-bound layouts (`Dashboard`, `Vertical`, `Horizontal`, `CPU
-  Focus`, `Memory Focus`, `Network Focus`, `Process Focus`) plus three
-  preset extras — `Detail Dashboard`, `Detail Network`, `Detail
-  Processes` (`detail_*.jsonc`) — that sit after the modes in file order
-  and showcase per-widget `options` (DR-UX6).
+- `default/` — the shipped **default layout files**: the primary `Dashboard`
+  layout (the only one embedded in the crate) plus the other six mode-bound
+  layouts (`Vertical`, `Horizontal`, `CPU Focus`, `Memory Focus`, `Network
+  Focus`, `Process Focus`) and three preset extras — `Detail Dashboard`,
+  `Detail Network`, `Detail Processes` (`detail_*.jsonc`) — that showcase
+  per-widget `options` (DR-UX6). The non-base files are installed on demand
+  from the official catalog into the user config directory.
 
   Preset table (UX8.5: dense full-monitor pages with zero orphan rows at
   common sizes — every split is percentage-exact or Fill-absorbed, see
@@ -29,15 +30,14 @@ thin:
   `summary` (load/uptime/process-count panel) and `sensors` (per-core
   temperature heat view) are the UX8.4 widget-wave arrivals placed by the
   UX8.5 presets; names resolve at render time like every other widget id.
-  On startup the kernel writes
-  these as editable templates into the user config layouts dir when it
-  initializes its assets (never overwriting files the user already
-  edited).
+  On startup the kernel writes the base `Dashboard` as an editable template
+  into the user config layouts dir. The other files are downloaded with
+  `xtop theme`/`xtop layout download` from the official catalog and are
+  never overwritten without `--force`.
 - `custom/` — **community layouts**: installable extras, shared via PRs.
-  They never ship in the binary; the kernel's `xtop layout install <name>`
-  fetches this folder and copies the layout into the user config layouts
-  dir (or copy the file there yourself, e.g. `~/.config/xtop/layouts/` on
-  Linux).
+  They are listed in the official catalog and installed with
+  `xtop layout download <name>` / `xtop layout install <name>` (or copied
+  manually into `~/.config/xtop/layouts/` on Linux).
 - `loader` — loading/parsing of JSONC files and merging with user overrides.
 - `mode` — built-in layout modes and terminal-size degradation rules.
 
@@ -47,8 +47,8 @@ thin:
 xtop-cli/layouts/
   src/                  xtop-layout crate (model, loader, mode)
   layouts/
-    default/            built-in defaults (embedded in the binary)
-    custom/             community layouts (installable, via PR)
+    default/            default layout files (Dashboard is embedded; the rest are catalog assets)
+    custom/             community layouts (catalog assets, via PR)
 ```
 
 ## Use
@@ -89,7 +89,7 @@ kernel decides which renderer each name maps to.
 ## Documentation
 
 - `docs/layout-schema.md` — formal JSONC layout schema (document structure,
-  area grammar, constraint syntax, comments dialect, embedded defaults).
+  area grammar, constraint syntax, comments dialect, base and catalog assets).
 - `docs/authoring.md` — step-by-step guide: writing, validating and
   installing layouts, widget ids, modes and terminal-size thresholds.
 - `docs/decisions.md` — design decision log (DR-3, unvalidated widget ids,
@@ -97,12 +97,20 @@ kernel decides which renderer each name maps to.
 
 ## Personalization model
 
-1. **Defaults** are compiled into the binary and copied as templates to
-   `~/.config/xtop/layouts/` on first run (seven mode-bound layouts first,
-   then the `detail_*` preset extras — order is part of the mode-slot
-   contract, see `docs/authoring.md` §6).
-2. **Overrides**: edit a file whose `"name"` matches a default → it replaces
-   that default in place (same palette position, no duplicates).
-3. **New layouts**: any extra file shows up as an additional layout.
-4. **Community**: share layouts via PR to `layouts/custom/`; users copy or
-   install them into their config dir.
+1. **Base**: `Dashboard` is embedded and copied as a template to
+   `~/.config/xtop/layouts/` on first run.
+2. **Catalog assets**: every other shipped layout is external. Install it
+   with `xtop layout download <name>` (or `xtop config download --all`); the
+   file lands in the user layouts directory with version, author and license
+   metadata recorded in `assets.json`.
+3. **Overrides**: edit a file whose `"name"` matches an installed layout and
+   it replaces it in place; `--force` is required to replace a downloaded
+   file through the CLI.
+4. **New layouts**: any extra JSONC file in the directory shows up as an
+   additional layout.
+5. **Community**: share layouts via PR to `layouts/custom/`; users install
+   them by catalog name.
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE). User-contributed layouts remain under the license chosen by their authors; see the license note.

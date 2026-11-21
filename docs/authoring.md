@@ -4,24 +4,25 @@ Step-by-step guide for writing a custom layout for xtop, validating it, and
 making it available — locally or as a community layout. The authoritative
 format description is `docs/layout-schema.md`; this guide focuses on the
 workflow and on the ids, modes and install/validation flow as implemented in
-the kernel (`xtop/src/commands/layout.rs`, `xtop/src/ui/layout/engine.rs`,
-`xtop/src/ui/screen.rs`).
+the kernel (`xtop/src/cli/commands/layout.rs`, `xtop/src/tui/layout/engine.rs`,
+`xtop/src/tui/screen.rs`).
 
 ## 1. Where layouts live
 
-The crate embeds ten default layouts (`layouts/default/*.jsonc`): the seven
-mode-bound defaults first (palette slots 0–6), then three preset extras
-(`detail_dashboard`, `detail_network`, `detail_processes` — slots 7–9,
-DR-UX6). Since UX8.5 the extras are dense, full-coverage pages: `Detail
+The crate embeds only the primary `Dashboard` layout. The other nine default
+files (six mode-bound layouts and three preset extras:
+`detail_dashboard`, `detail_network`, `detail_processes`, DR-UX6) are
+external catalog assets installed with `xtop layout download <name>` or
+`xtop config download --all`. Since UX8.5 the extras are dense, full-coverage pages: `Detail
 Dashboard` is the full-monitor page (tall `cpu` with `summary`/`sensors`
 side column + full-width `processes`), `Detail Network` focuses the
 per-interface `network` box with a `summary`/`disk_io`/`memory` side column
 and a bottom `processes` strip, and `Detail Processes` is a compact stat
 strip (`summary` + `cpu`/`memory`/`storage`/`network`) over a full-height
-`processes` table. Custom layouts are loaded from the **user layouts
-directory** at startup
-(`xtop/src/commands/share/bootstrap.rs` merges defaults with everything
-`load_layouts_from_dir` finds there):
+`processes` table. Custom and downloaded layouts are loaded from the **user layouts
+directory** at startup. The kernel's `core::bootstrap::load_layout_defs`
+merges the embedded Dashboard with everything `load_layouts_from_dir` finds
+there:
 
 | Platform | User config dir | User layouts dir |
 |---|---|---|
@@ -54,13 +55,10 @@ Create a `.jsonc` file containing exactly one layout:
 Rules of thumb (full grammar: `docs/layout-schema.md`):
 
 - `"name"` must be unique. Merging is by exact, case-sensitive name: a file
-  whose name equals a default *replaces that default in place* (same palette
-  slot); every other file is appended after the defaults. The embedded
-  defaults are ordered so the first seven names are the mode-bound layouts
-  and the three preset extras (`Detail Dashboard`, `Detail Network`,
-  `Detail Processes`) come right after them — never renumber the first
-  seven, and new embedded extras must be appended at the end (see
-  `docs/layout-schema.md`, "Embedded defaults").
+  whose name equals the embedded Dashboard *replaces it in place*; every
+  other file is appended after the base. Downloaded and user layouts share
+  the same directory and the same name-based merge rule. See
+  `docs/layout-schema.md`, "Base and catalog defaults".
 - Use a 3-row `header` widget on top, like every default.
 - In a `"vertical"` split children stack top-to-bottom; in `"horizontal"`
   they sit side-by-side. Percentages refer to the enclosing split.
@@ -77,7 +75,7 @@ Rules of thumb (full grammar: `docs/layout-schema.md`):
 
 UX8.5 presets are dense: every layout row is covered by a box and every box
 is tall enough for its content to grow (charts/lists fill their box — the
-UX8.4 widgets wave). The render engine (`xtop/src/ui/layout/engine.rs`)
+UX8.4 widgets wave). The render engine (`xtop/src/tui/layout/engine.rs`)
 feeds the constraints to ratatui, where percentages measure the **whole**
 split and Fill takes the leftover, so write splits that tile by construction:
 
@@ -121,7 +119,7 @@ percentage-exact or Fill-absorbed.
 
 ## 3. Validating
 
-The kernel exposes `xtop layout check` (`xtop/src/commands/layout.rs`), which
+The kernel exposes `xtop layout check` (`xtop/src/cli/commands/layout.rs`), which
 runs the exact parser of this crate (`parse_layout_err`):
 
 ```sh
@@ -145,31 +143,27 @@ easy to miss, which is why `xtop layout check` exists.
 ## 4. Making it active
 
 - **Personal layout**: put the file directly into the user layouts dir
-  (table above). The directory is read once at startup, so restart xtop (or
-  start it) to pick changes up; cycle the palette with `l`, or select the
-  layout by name from the command palette. The active layout name is
-  persisted in the config and restored on the next run.
-- **Seeded defaults**: on startup the kernel seeds copies of the ten
-  default `.jsonc` templates into the user layouts dir (marker file
-  `.xtop_initialized`, version `4` since the preset extras were renamed to
-  `detail_*` and the seeded set was refreshed; files that
-  already exist are never overwritten —
-  `xtop/src/commands/share/assets.rs`). Editing a seeded copy is the
-  supported way to tweak a built-in default; because overrides match by
-  `"name"`, the edited file replaces the default at its usual palette slot.
-  Seeded copies of *renamed* templates are never deleted either: after an
-  upgrade that renames a template, the new files are seeded next to the
-  older copies, and any older copy whose `"name"` no longer matches a
-  built-in behaves like a user layout (an extra at the end of the
-  palette). Remove older copies yourself when you did not edit them.
-- **Overrides vs. new layouts**: same name → in-place replacement (slot
-  preserved, no duplicate). New name → appended as an extra layout.
+  (table above), then run `xtop layout set <name>` or restart xtop. The TUI
+  polls the persisted layout name and reloads the layouts directory when the
+  name is not loaded yet, so a running instance can pick up a new file after
+  `set`. The active layout name is persisted in the config and restored on
+  the next run.
+- **Base layout**: only `dashboard.jsonc` is embedded. The kernel writes it
+  as an editable template when initializing assets or when
+  `xtop --gen-config` runs (`xtop/src/core/assets`). Existing files are
+  never overwritten. Editing it customizes the base Dashboard; overrides
+  match by `"name"`.
+- **Catalog layouts**: every other layout is downloaded from the official
+  catalog into the user layouts dir with version, author, license and
+  checksum metadata. The downloaded file is a normal editable JSONC file.
+- **Overrides vs. new layouts**: same name → in-place replacement. New name
+  → appended as an extra layout.
 
 ## 5. Widget ids
 
 Layout files reference widgets by plain string ids; there is no
 compile-time allowlist, resolution happens at render time
-(`xtop/src/ui/layout/engine.rs`). What the presets reference today:
+(`xtop/src/tui/layout/engine.rs`). What the presets reference today:
 
 | Id | Where | Notes |
 |---|---|---|
@@ -182,7 +176,7 @@ Reference order at render time: plugin widgets first, then the pack chosen
 by the style config, falling back to the base pack. A typo'd or unavailable
 id **renders nothing** in that area (the area is left blank); the kernel
 prints a one-time stderr warning per unknown name (`xtop: layout '<name>'
-references unknown widget '<name>'` — `xtop/src/ui/layout/engine.rs`), and
+references unknown widget '<name>'` — `xtop/src/tui/layout/engine.rs`), and
 the full-screen view shows `No widget registered for '<name>'` instead.
 Because of that, `xtop layout check` is structural validation only: it
 cannot know whether an id will resolve.
@@ -201,53 +195,54 @@ The crate computes how the requested mode degrades with terminal size
 | `Vertical` / `Horizontal` / focus modes | ≥ 60×14 | the requested mode itself |
 
 (Kernel UI floor: below 40×8 the screen shows a "Terminal too small" notice
-before any layout logic runs — `xtop/src/ui/screen.rs`.)
+before any layout logic runs — `xtop/src/tui/screen.rs`.)
 
-Mode ↔ palette coupling (why order matters):
+Mode and layout resolution:
 
-- The seven built-in modes map by *label* to the first seven palette slots.
-  Slot order is fixed by `DEFAULT_LAYOUT_SOURCES` in `src/loader.rs`:
-  `dashboard, vertical, horizontal, cpu_focus, memory_focus, network_focus,
-  process_focus` → names `Dashboard, Vertical, Horizontal, CPU Focus, Memory
-  Focus, Network Focus, Process Focus`. A unit test pins this order.
-- `mode_from_layout_index` maps slots 0–6 back to their mode and defaults to
-  `Dashboard` for anything ≥ 7, so the kernel's `l` cycling relies on the
-  defaults keeping those slots: a same-name override keeps its slot, extra
-  layouts — the embedded `detail_*` presets at slots 7–9 and any user files
-  — are appended *after* them and are addressed by name only. The kernel
-  cycles through the full list in order and wraps around, so `l` reaches the
-  presets right after `Process Focus` and a further press wraps back to
-  `Dashboard`.
+- `DEFAULT_LAYOUT_SOURCES` in `src/loader.rs` embeds only `dashboard`
+  (`Dashboard`). The other six mode layouts are catalog assets with the
+  names `Vertical`, `Horizontal`, `CPU Focus`, `Memory Focus`,
+  `Network Focus` and `Process Focus`.
+- The kernel resolves layouts by display name. `mode_from_layout_index` is a
+  legacy helper for mode-ordered lists; it is not used to infer the mode of
+  downloaded layouts. A layout whose name matches a built-in mode selects
+  that mode; anything else keeps the previous mode.
+- The kernel cycles through the effective list in file order and wraps
+  around. The absolute order of downloaded layouts is not a compatibility
+  contract; users select by name or cycle through what is installed.
 - The kernel restores a layout by `config.layout_name` first and falls back
   to `layout_index_from_mode(config.layout_mode, ...)` when the saved name
   vanished (e.g. an override file was removed).
 
 ## 7. Sharing a layout (community flow)
 
-The kernel installs community layouts **from this repo's `layouts/custom/`
-folder**, fetched over git:
+The kernel installs default and community layouts **from the official
+catalog**:
 
 ```sh
-xtop layout install <name>
+xtop layout download <name>     # or: xtop layout install <name>
+xtop layout download --all
 ```
 
-What the kernel does (`xtop/src/commands/layout.rs`, `cmd_install`):
+What the kernel does (`xtop/src/cli/commands/layout.rs`):
 
-1. Runs `git clone --depth 1 --filter=blob:none --sparse
-   https://github.com/xtop-cli/layouts` into a temp dir (git must be on
-   `PATH`), then `git sparse-checkout set layouts/custom`.
-2. Scans `layouts/custom/` for `*.json`/`*.jsonc` files and picks the first
-   whose file stem *or* parsed `"name"` equals `<name>`
-   (case-insensitive).
-3. Copies that file into the user layouts dir **under its original file
-   name**; it refuses to overwrite an existing target (edit in place
-   instead) and errors when nothing matches or git fails.
+1. Fetches `catalog.json` from the kernel repository (or
+   `XTOP_CATALOG_URL`).
+2. Finds the layout by catalog id or display name (case-insensitive).
+3. Downloads the raw JSONC file, verifies the catalog SHA-256, validates it
+   with `parse_layout_err`, and writes it atomically into the user layouts
+   dir under its catalog file name.
+4. Records version, author and license in `assets.json`.
+
+Existing files are skipped unless `--force` is used.
 
 So to share a layout: put `my_layout.jsonc` into `layouts/custom/` of this
-repo (unique `"name"`, validated with `xtop layout check`), open a PR, and
-after it lands anyone can `xtop layout install <name>`.
+repo (unique `"name"`, validated with `xtop layout check`), add it to
+`catalog.json` in the kernel repository with its version, author, license,
+URL and SHA-256, and open the PRs. After they land, anyone can
+`xtop layout download <name>`.
 
-You can equally skip the repo: copy the file into the user layouts dir
-yourself — the app loads it at the next startup either way. Community files
-in this repo are *not* read by the kernel at runtime; they only become live
-after the install (or a manual copy).
+You can equally skip the catalog: copy the file into the user layouts dir
+yourself — the app loads it after `xtop layout set` or the next startup.
+Community files in this repo are *not* read by the kernel at runtime; they
+only become live after the download (or a manual copy).

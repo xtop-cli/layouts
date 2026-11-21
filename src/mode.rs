@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::LayoutDef;
 
-/// The built-in layout modes. Layouts outside these seven — the embedded
+/// The built-in layout modes. Layouts outside these seven — downloaded
 /// `detail_*` preset extras (DR-UX6) and user layouts — are not represented
 /// here: they are addressed by name through [`LayoutDef::name`] and keep the
 /// mode of the previously active built-in for degradation purposes.
@@ -98,8 +98,9 @@ pub fn layout_index_from_mode(mode: LayoutMode, defs: &[LayoutDef]) -> usize {
     defs.iter().position(|d| d.name == label).unwrap_or(0)
 }
 
-/// Legacy inverse mapping of [`layout_index_from_mode`] for the first 7
-/// palette slots (the defaults). Custom layouts beyond index 6 have no mode.
+/// Legacy inverse mapping for the first 7 palette slots. The kernel now
+/// resolves layouts by name; this helper remains for API compatibility and
+/// consumers that still keep mode-ordered lists.
 pub fn mode_from_layout_index(index: usize) -> LayoutMode {
     match index {
         0 => LayoutMode::Dashboard,
@@ -175,7 +176,11 @@ mod tests {
     #[test]
     fn test_layout_mode_helpers() {
         let defs = crate::loader::default_layouts();
-        assert_eq!(layout_index_from_mode(LayoutMode::CpuFocus, &defs), 3);
+        assert_eq!(
+            layout_index_from_mode(LayoutMode::CpuFocus, &defs),
+            0,
+            "only Dashboard is embedded; missing modes fall back to index 0"
+        );
         assert_eq!(mode_from_layout_index(3), LayoutMode::CpuFocus);
         assert_eq!(mode_from_layout_index(42), LayoutMode::Dashboard);
         assert_eq!(

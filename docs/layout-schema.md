@@ -14,9 +14,12 @@ same `parse_layout_err` function from `src/loader.rs`).
   the file, not the file name.
 - Files may use `.jsonc` or `.json`; JSONC (comments allowed) is the
   convention everywhere in this repo.
-- Built-in defaults live in `layouts/default/` and are embedded into the
-  binary through `DEFAULT_LAYOUT_SOURCES` in `src/loader.rs` (10 files:
-  seven mode-bound defaults + three `detail_*` preset extras).
+- Default layout files live in `layouts/default/` (10 files: seven mode-bound
+  layouts + three `detail_*` preset extras). Only the primary `Dashboard` is
+  embedded through `DEFAULT_LAYOUT_SOURCES` in `src/loader.rs`; the other
+  files are catalog assets downloaded into the user layouts directory.
+- The official catalog (`xtop/catalog.json`) records each file's id, display
+  name, category, version, author, license, URL and SHA-256.
 - User layouts live in the platform config dir under `layouts/` — see
   `docs/authoring.md` for the concrete paths per platform.
 - A directory is loaded by `load_layouts_from_dir`: every `*.json`/`*.jsonc`
@@ -150,7 +153,7 @@ Parsing details, exactly as implemented in `TryFrom<LayoutAreaRaw>`:
   `invalid size constraint: <value>`.
 
 Fill areas are resolved by the kernel's renderer with equal weight
-(`Constraint::Fill(1)` in `xtop/src/ui/layout/engine.rs`): when several
+(`Constraint::Fill(1)` in `xtop/src/tui/layout/engine.rs`): when several
 siblings use `"*"` (or omit `size`), the leftover space is shared equally.
 
 ## Direction semantics
@@ -227,17 +230,15 @@ lengths, `"NN%"` strings for percentages, `"*"` for fill (fill is always
 written explicitly), then either `widget` (followed by `options` when the
 node carries one) or `direction` + `areas`.
 
-## Embedded defaults
+## Base and catalog defaults
 
-`DEFAULT_LAYOUT_SOURCES` in `src/loader.rs` embeds ten files. The first
-seven are the **mode-bound defaults** in palette order (index 0–6); after
-them three **preset extras** (index 7–9) ship the `detail_*` variants
-(DR-UX6). Extras are appended *after* the
-mode-bound defaults so the mode indices never move; they are ordinary
-layouts with a `"name"` that maps to no `LayoutMode` (addressed by name
-from the palette and reachable from the kernel's layout cycling key after
-the modes). Slot order and names are covered by unit tests
-(`test_default_layouts_count_and_order`,
+`DEFAULT_LAYOUT_SOURCES` in `src/loader.rs` embeds only `dashboard.jsonc`.
+The other nine shipped layouts (six mode layouts and three `detail_*`
+presets, DR-UX6) are external catalog assets. The kernel merges the embedded
+base with every JSONC file in the user layouts directory; external layouts
+are addressed by name and appear in file order after the base. The shipped
+files and catalog metadata are covered by unit tests
+(`test_all_shipped_layout_files_parse`,
 `test_preset_extras_parse_with_widget_options`,
 `test_detail_presets_split_coverage_full_tiling`,
 `test_detail_presets_reference_registry_widget_names`):
